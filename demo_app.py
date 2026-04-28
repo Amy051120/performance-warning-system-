@@ -47,10 +47,63 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# 模拟数据生成函数
+@st.cache_data
+def generate_sample_data():
+    """生成模拟的股票数据"""
+    np.random.seed(42)
+    
+    # 生成股票列表
+    stocks = [
+        ('600519', '贵州茅台'), ('000858', '五粮液'), ('002594', '比亚迪'),
+        ('600036', '招商银行'), ('601318', '中国平安'), ('000001', '平安银行'),
+        ('600000', '浦发银行'), ('000002', '万科A'), ('600276', '恒瑞医药'),
+        ('000333', '美的集团'), ('600030', '中信证券'), ('601166', '兴业银行'),
+        ('600887', '伊利股份'), ('000651', '格力电器'), ('601398', '工商银行'),
+        ('601288', '农业银行'), ('600016', '民生银行'), ('601988', '中国银行'),
+        ('600050', '中国联通'), ('601628', '中国人寿')
+    ]
+    
+    # 生成历史数据
+    data = []
+    for code, name in stocks:
+        for year in range(2012, 2026):
+            # 随机生成预告类型
+            forecast_types = ['大增', '略增', '扭亏', '续盈', '略降', '续亏', '不确定']
+            forecast = np.random.choice(forecast_types)
+            
+            # 随机生成变脸标签(2012-2021年有标签,2022-2025年未知)
+            if year <= 2021:
+                face_change = np.random.choice([0, 1], p=[0.96, 0.04])
+            else:
+                face_change = -1  # 未知
+            
+            # 生成变脸概率(2022-2025年)
+            if year >= 2022:
+                prob = np.random.beta(2, 5)  # 大部分概率较低
+            else:
+                prob = np.nan
+            
+            data.append({
+                'StockCode': code,
+                'StockName': name,
+                'Year': year,
+                'ForecFinReportType': forecast,
+                'face_change': face_change,
+                'probability': prob
+            })
+    
+    return pd.DataFrame(data)
+
+# 加载数据
+sample_df = generate_sample_data()
+
 # 侧边栏导航
 st.sidebar.title("📊 功能导航")
 page = st.sidebar.radio("", [
     "🏠 系统概览",
+    "🔍 股票预警查询",
+    "🔮 2025年预测结果",
     "📈 模型性能",
     "🔬 消融实验",
     "🎯 预测示例",
@@ -393,3 +446,158 @@ elif page == "ℹ️ 关于系统":
         <p>本系统仅供学术研究和演示使用</p>
     </div>
     """, unsafe_allow_html=True)
+
+# ==================== 页面: 股票预警查询 ====================
+elif page == "🔍 股票预警查询":
+    st.markdown('<h1 class="main-header">股票预警查询</h1>', unsafe_allow_html=True)
+    st.markdown("---")
+    
+    st.markdown('<h2 class="sub-header">查询股票历史预告记录</h2>', unsafe_allow_html=True)
+    
+    # 输入股票代码
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        stock_code = st.text_input("输入股票代码(6位数字)", value="", placeholder="如: 600519")
+    
+    if stock_code:
+        try:
+            stock_int = int(stock_code)
+        except ValueError:
+            st.error("请输入有效的6位数字股票代码")
+            st.stop()
+        
+        # 查询股票数据
+        stock_data = sample_df[sample_df['StockCode'] == stock_code]
+        
+        if len(stock_data) > 0:
+            stock_name = stock_data['StockName'].iloc[0]
+            st.subheader(f"📊 {stock_name}({stock_code})历史预告记录")
+            
+            # 显示历史记录
+            display_df = stock_data[['Year', 'ForecFinReportType', 'face_change', 'probability']].copy()
+            display_df['变脸'] = display_df['face_change'].map({1: '是', 0: '否', -1: '未知'})
+            display_df['变脸概率'] = display_df['probability'].apply(lambda x: f"{x:.2%}" if pd.notna(x) else "无")
+            display_df = display_df.drop(columns=['face_change', 'probability'])
+            display_df = display_df.rename(columns={
+                'Year': '年份',
+                'ForecFinReportType': '预告类型'
+            })
+            
+            st.dataframe(display_df.sort_values('年份', ascending=False), 
+                        use_container_width=True, hide_index=True)
+            
+            # 显示预警结果(2022-2025)
+            recent_data = stock_data[stock_data['Year'] >= 2022]
+            if len(recent_data) > 0 and recent_data['probability'].notna().any():
+                st.subheader("📋 各年份预警结果(2022-2025)")
+                
+                result_data = []
+                for _, row in recent_data.iterrows():
+                    if pd.notna(row['probability']):
+                        prob = row['probability']
+                        if prob >= 0.7:
+                            risk = "🔴 极高风险"
+                        elif prob >= 0.5:
+                            risk = "🟠 高风险"
+                        elif prob >= 0.3:
+                            risk = "🟡 中风险"
+                        else:
+                            risk = "🟢 低风险"
+                        
+                        result_data.append({
+                            '年份': row['Year'],
+                            '预告类型': row['ForecFinReportType'],
+                            '变脸概率': f"{prob:.2%}",
+                            '风险等级': risk
+                        })
+                
+                if result_data:
+                    result_df = pd.DataFrame(result_data)
+                    st.dataframe(result_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("该股票在2022-2025年无预测结果")
+            else:
+                st.info("该股票在2022-2025年无预告数据,无法预测")
+        else:
+            st.warning(f"未找到股票代码 {stock_code} 的数据")
+            # 显示示例股票代码
+            sample_codes = sample_df['StockCode'].unique()[:10]
+            st.info(f"可尝试的股票代码: {', '.join(map(str, sample_codes))}")
+    else:
+        st.info("请输入6位数字股票代码进行查询")
+        # 显示示例
+        st.markdown("### 示例股票代码:")
+        sample_stocks = sample_df[['StockCode', 'StockName']].drop_duplicates().head(10)
+        st.dataframe(sample_stocks, use_container_width=True, hide_index=True)
+
+# ==================== 页面: 2025年预测结果 ====================
+elif page == "🔮 2025年预测结果":
+    st.markdown('<h1 class="main-header">2025年预测结果</h1>', unsafe_allow_html=True)
+    st.markdown("---")
+    
+    # 获取2025年数据
+    data_2025 = sample_df[sample_df['Year'] == 2025].copy()
+    
+    # 统计信息
+    st.markdown('<h2 class="sub-header">预测统计</h2>', unsafe_allow_html=True)
+    col1, col2, col3, col4 = st.columns(4)
+    
+    probs = data_2025['probability'].values
+    with col1:
+        st.metric("📊 2025年样本数", f"{len(data_2025)}")
+    with col2:
+        st.metric("📈 平均变脸概率", f"{probs.mean():.2%}")
+    with col3:
+        st.metric("🔴 高风险(≥60%)", f"{(probs >= 0.6).sum()}家")
+    with col4:
+        st.metric("🟢 低风险(<30%)", f"{(probs < 0.3).sum()}家")
+    
+    # 概率分布
+    st.markdown('<h2 class="sub-header">变脸概率分布</h2>', unsafe_allow_html=True)
+    
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.hist(probs, bins=30, color='steelblue', edgecolor='white', alpha=0.8)
+    ax.axvline(x=0.3, color='yellow', linestyle='--', label='中风险阈值(0.3)')
+    ax.axvline(x=0.6, color='red', linestyle='--', label='高风险阈值(0.6)')
+    ax.set_xlabel('变脸概率', fontsize=12)
+    ax.set_ylabel('公司数', fontsize=12)
+    ax.set_title('2025年业绩预告变脸概率分布', fontsize=14)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    st.pyplot(fig)
+    
+    # 概率筛选功能
+    st.markdown('<h2 class="sub-header">变脸概率筛选</h2>', unsafe_allow_html=True)
+    st.markdown("输入概率阈值,筛选变脸概率不低于该值的公司:")
+    
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        threshold_pct = st.slider("概率阈值(%)", 0, 100, 40, 5)
+    
+    threshold = threshold_pct / 100.0
+    filtered = data_2025[data_2025['probability'] >= threshold].sort_values('probability', ascending=False)
+    
+    st.info(f"变脸概率 ≥ {threshold_pct}% 的公司共 **{len(filtered)}** 家")
+    
+    if len(filtered) > 0:
+        display_filtered = filtered[['StockCode', 'StockName', 'ForecFinReportType', 'probability']].copy()
+        display_filtered['变脸概率'] = display_filtered['probability'].apply(lambda x: f"{x:.2%}")
+        display_filtered = display_filtered.drop(columns=['probability'])
+        display_filtered = display_filtered.rename(columns={
+            'StockCode': '股票代码',
+            'StockName': '公司名称',
+            'ForecFinReportType': '预告类型'
+        })
+        st.dataframe(display_filtered.reset_index(drop=True), use_container_width=True, hide_index=True)
+    
+    # Top 20高风险公司
+    st.markdown('<h2 class="sub-header">Top 20 高风险公司</h2>', unsafe_allow_html=True)
+    top_20 = data_2025.nlargest(20, 'probability')[['StockCode', 'StockName', 'ForecFinReportType', 'probability']]
+    top_20['变脸概率'] = top_20['probability'].apply(lambda x: f"{x:.2%}")
+    top_20 = top_20.drop(columns=['probability'])
+    top_20 = top_20.rename(columns={
+        'StockCode': '股票代码',
+        'StockName': '公司名称',
+        'ForecFinReportType': '预告类型'
+    })
+    st.dataframe(top_20.reset_index(drop=True), use_container_width=True, hide_index=True)
