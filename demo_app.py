@@ -9,6 +9,10 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
 
+# 配置matplotlib中文字体
+plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans', 'Arial Unicode MS']
+plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+
 # 页面配置
 st.set_page_config(
     page_title="业绩变脸早期预警系统",
@@ -47,14 +51,34 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 模拟数据生成函数
+# 数据加载函数
 @st.cache_data
+def load_real_data():
+    """加载真实数据"""
+    import os
+    
+    # 尝试加载真实数据
+    data_path = 'data/all_features.pkl'
+    parquet_path = 'data/all_features.parquet'
+    
+    if os.path.exists(data_path):
+        # 本地运行,加载真实数据
+        df = pd.read_pickle(data_path)
+        return df
+    elif os.path.exists(parquet_path):
+        # Streamlit Cloud,加载parquet格式
+        df = pd.read_parquet(parquet_path)
+        return df
+    else:
+        # 如果没有真实数据,生成模拟数据
+        return generate_sample_data()
+
 def generate_sample_data():
-    """生成模拟的股票数据"""
+    """生成模拟数据(备用)"""
     np.random.seed(42)
     
-    # 生成股票列表
-    stocks = [
+    stocks = []
+    famous_stocks = [
         ('600519', '贵州茅台'), ('000858', '五粮液'), ('002594', '比亚迪'),
         ('600036', '招商银行'), ('601318', '中国平安'), ('000001', '平安银行'),
         ('600000', '浦发银行'), ('000002', '万科A'), ('600276', '恒瑞医药'),
@@ -63,24 +87,26 @@ def generate_sample_data():
         ('601288', '农业银行'), ('600016', '民生银行'), ('601988', '中国银行'),
         ('600050', '中国联通'), ('601628', '中国人寿')
     ]
+    stocks.extend(famous_stocks)
     
-    # 生成历史数据
+    for i in range(80):
+        code = f"{600000 + i:06d}"
+        name = f"公司{i+1}"
+        stocks.append((code, name))
+    
     data = []
     for code, name in stocks:
         for year in range(2012, 2026):
-            # 随机生成预告类型
             forecast_types = ['大增', '略增', '扭亏', '续盈', '略降', '续亏', '不确定']
             forecast = np.random.choice(forecast_types)
             
-            # 随机生成变脸标签(2012-2021年有标签,2022-2025年未知)
             if year <= 2021:
-                face_change = np.random.choice([0, 1], p=[0.96, 0.04])
+                face_change = np.random.choice([0, 1], p=[0.95, 0.05])
             else:
-                face_change = -1  # 未知
+                face_change = -1
             
-            # 生成变脸概率(2022-2025年)
             if year >= 2022:
-                prob = np.random.beta(2, 5)  # 大部分概率较低
+                prob = np.random.beta(2, 5)
             else:
                 prob = np.nan
             
@@ -96,7 +122,7 @@ def generate_sample_data():
     return pd.DataFrame(data)
 
 # 加载数据
-sample_df = generate_sample_data()
+sample_df = load_real_data()
 
 # 侧边栏导航
 st.sidebar.title("📊 功能导航")
