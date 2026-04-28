@@ -57,21 +57,28 @@ def load_real_data():
     """加载真实数据"""
     import os
     
-    # 尝试加载真实数据
-    data_path = 'data/all_features.pkl'
-    parquet_path = 'data/all_features.parquet'
+    # 尝试多种路径加载真实数据
+    possible_paths = [
+        'all_features.parquet',  # 根目录(当前GitHub实际情况)
+        'data/all_features.parquet',  # data文件夹
+        'data/all_features.pkl',  # pkl格式
+        'output/data/all_features.parquet',  # output/data文件夹
+    ]
     
-    if os.path.exists(data_path):
-        # 本地运行,加载真实数据
-        df = pd.read_pickle(data_path)
-        return df
-    elif os.path.exists(parquet_path):
-        # Streamlit Cloud,加载parquet格式
-        df = pd.read_parquet(parquet_path)
-        return df
-    else:
-        # 如果没有真实数据,生成模拟数据
-        return generate_sample_data()
+    for path in possible_paths:
+        if os.path.exists(path):
+            try:
+                if path.endswith('.parquet'):
+                    df = pd.read_parquet(path)
+                else:
+                    df = pd.read_pickle(path)
+                return df
+            except Exception as e:
+                st.warning(f"加载{path}失败: {e}")
+                continue
+    
+    # 如果所有路径都失败,生成模拟数据
+    return generate_sample_data()
 
 def generate_sample_data():
     """生成模拟数据(备用)"""
