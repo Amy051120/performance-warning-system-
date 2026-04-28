@@ -250,9 +250,9 @@ elif page == "📈 模型性能":
     ax1.plot(years, rf_auc, 'o-', label='Random Forest', linewidth=2, markersize=8)
     ax1.plot(years, xgb_auc, 's-', label='XGBoost', linewidth=2, markersize=8)
     ax1.plot(years, lgb_auc, '^-', label='LightGBM', linewidth=2, markersize=8)
-    ax1.set_xlabel('预测年份', fontsize=12)
+    ax1.set_xlabel('Year', fontsize=12)
     ax1.set_ylabel('AUC', fontsize=12)
-    ax1.set_title('各模型AUC趋势', fontsize=14)
+    ax1.set_title('Model AUC Trend', fontsize=14)
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     
@@ -264,9 +264,9 @@ elif page == "📈 模型性能":
     ax2.plot(years, rf_recall, 'o-', label='Random Forest', linewidth=2, markersize=8)
     ax2.plot(years, xgb_recall, 's-', label='XGBoost', linewidth=2, markersize=8)
     ax2.plot(years, lgb_recall, '^-', label='LightGBM', linewidth=2, markersize=8)
-    ax2.set_xlabel('预测年份', fontsize=12)
+    ax2.set_xlabel('Year', fontsize=12)
     ax2.set_ylabel('Recall', fontsize=12)
-    ax2.set_title('各模型Recall趋势', fontsize=14)
+    ax2.set_title('Model Recall Trend', fontsize=14)
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     
@@ -313,9 +313,12 @@ elif page == "🔬 消融实验":
     ax.barh(x, ablation_data['AUC均值'], xerr=ablation_data['AUC标准差'], 
             color='steelblue', alpha=0.8, capsize=5)
     ax.set_yticks(x)
-    ax.set_yticklabels(ablation_data['特征组合'])
+    # 使用英文标签
+    english_labels = ['Finance Only', 'Forecast Only', 'BERT Only', 
+                     'Finance+Forecast', 'Finance+BERT', 'Forecast+BERT', 'All Features']
+    ax.set_yticklabels(english_labels)
     ax.set_xlabel('AUC', fontsize=12)
-    ax.set_title('各特征组合AUC对比(含标准差)', fontsize=14)
+    ax.set_title('Feature Combination AUC Comparison (with Std)', fontsize=14)
     ax.grid(True, alpha=0.3, axis='x')
     plt.tight_layout()
     st.pyplot(fig)
@@ -583,11 +586,11 @@ elif page == "🔮 2025年预测结果":
     
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.hist(probs, bins=30, color='steelblue', edgecolor='white', alpha=0.8)
-    ax.axvline(x=0.3, color='yellow', linestyle='--', label='中风险阈值(0.3)')
-    ax.axvline(x=0.6, color='red', linestyle='--', label='高风险阈值(0.6)')
-    ax.set_xlabel('变脸概率', fontsize=12)
-    ax.set_ylabel('公司数', fontsize=12)
-    ax.set_title('2025年业绩预告变脸概率分布', fontsize=14)
+    ax.axvline(x=0.3, color='yellow', linestyle='--', label='Medium Risk(0.3)')
+    ax.axvline(x=0.6, color='red', linestyle='--', label='High Risk(0.6)')
+    ax.set_xlabel('Face Change Probability', fontsize=12)
+    ax.set_ylabel('Number of Companies', fontsize=12)
+    ax.set_title('2025 Face Change Probability Distribution', fontsize=14)
     ax.legend()
     ax.grid(True, alpha=0.3)
     st.pyplot(fig)
